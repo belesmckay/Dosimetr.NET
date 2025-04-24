@@ -5,18 +5,19 @@ namespace Dosimeter
 {
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         
         FS5000 FS = new FS5000("/dev/ttyUSB0");
+        IoT iot = new IoT("localhost","beles","strike",1883);
 
         FS.startCommunication();
-        _ = Task.Run(() => FS.CtiAsynchronne());
+        var task1 = Task.Run(() => FS.CtiAsynchronne());
+        var task2 = Task.Run(() => iot.startMQTT());
 
-        while(true)
-        {
-            
-        }
+        await Task.WhenAll(task1,task2);
+    
+
         
         
     }

@@ -2,6 +2,7 @@ using System.IO.Ports;
 using System;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading.Channels;
 namespace Dosimeter
 {
 class FS5000
@@ -9,10 +10,13 @@ class FS5000
     List<byte> outData = new List<byte>{};
     private string device;
     private SerialPort port;
+    private Channel<string> chanenel;
+
 
     public FS5000(string device)
     {
         this.device = device;
+        
     }
     public void startCommunication()
     {
@@ -68,7 +72,6 @@ class FS5000
             {
                 if(payloadWilRead == 0)
                 {
-                    
                     byte[] filteredOut = outData.ToArray();
                     string textt = Encoding.ASCII.GetString(filteredOut, 0, filteredOut.Count());
                     string hexx = BitConverter.ToString(filteredOut,0,filteredOut.Count());
@@ -78,17 +81,13 @@ class FS5000
                 }
                 outData.Add(buffer[i]);
             }
-           }
-            
-            
-            
-          
-                
+           }  
         }
         port.Close();
     }
     public void writeData()
     {
+        // 0x0E Read all 0x06 version
         List<byte> dataList = new List<byte> {0xAA,0x5,0x0E,0x01};
         Console.WriteLine();
         byte check = checkSum(dataList.ToArray(),4);
