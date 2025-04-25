@@ -3,22 +3,58 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Channels;
+using System.Reflection.Metadata;
 namespace Dosimeter
 {
-class FS5000
+class DosimeterData
 {
-    List<byte> outData = new List<byte>{};
-    private string device;
-    private SerialPort port;
-    private Channel<string> chanenel;
+    private double doserate;
 
-
-    public FS5000(string device)
+    public double Doserate
     {
-        this.device = device;
-        
+        get{return doserate;}
+        set{this.doserate = value;}
     }
-    public void startCommunication()
+    private double dose;
+    public double Dose
+    {
+        get{return dose;}
+        set{this.dose = value;}
+    }
+    private double avg_doserate;
+    public double Avg_doserate
+    {
+        get{return avg_doserate;}
+        set{this.avg_doserate = value;}
+    }
+    private UInt16 cps;
+    public UInt16 Cps
+    {
+        get{return cps;}
+        set{this.cps = value;}
+    }
+    private UInt16 cpm;
+    public UInt16 Cpm
+    {
+        get{return cpm;}
+        set{this.cpm = value;}
+    }
+
+    private byte warning;
+    public byte Warning
+    {
+        get{return warning;}
+        set{this.warning = value;}
+    }
+}
+class FS5000(string device, Channel<string> ch)
+    {
+    List<byte> outData = new List<byte>{};
+    private string device = device;
+    private SerialPort? port;
+    private Channel<string> ch = ch;
+
+        public void startCommunication()
     {
             Console.WriteLine("Communication Start");
             try
@@ -37,20 +73,20 @@ class FS5000
             }
             catch(Exception e)
             {
-                Console.WriteLine("Pruser");
+                Console.WriteLine("Cant open Serial port");
             }     
     }
     
 
     public async Task CtiAsynchronne()
     {
-        
+        int payloadWilRead = 0;
         byte[] buffer = new byte[1024];
         var stream = port.BaseStream;
-        
-        // Posle start command //
+
+        // send read command //
         writeData();
-        int payloadWilRead = 0;
+        
         while (true)
         {
             
@@ -59,9 +95,9 @@ class FS5000
            if(buffer[0] == 0xAA)
            {
 
-            payloadWilRead = buffer[1] - 1;
+            payloadWilRead = buffer[1] - 2;
             
-            for(int i = 2; i <= bytesRead;i++,payloadWilRead--)
+            for(int i = 3; i <= bytesRead;i++,payloadWilRead--)
             {
                 outData.Add(buffer[i]);
             }
@@ -74,8 +110,8 @@ class FS5000
                 {
                     byte[] filteredOut = outData.ToArray();
                     string textt = Encoding.ASCII.GetString(filteredOut, 0, filteredOut.Count());
-                    string hexx = BitConverter.ToString(filteredOut,0,filteredOut.Count());
-                    Console.WriteLine(textt);
+                    await ch.Writer.WriteAsync(textt);
+                    
                     outData.Clear();
                     break;
                 }
@@ -87,9 +123,9 @@ class FS5000
     }
     public void writeData()
     {
-        // 0x0E Read all 0x06 version
         List<byte> dataList = new List<byte> {0xAA,0x5,0x0E,0x01};
-        Console.WriteLine();
+        // 0x0E Read all 0x06 version
+
         byte check = checkSum(dataList.ToArray(),4);
         dataList.Add(check);
         dataList.Add(0x55);
@@ -104,6 +140,7 @@ class FS5000
         return (byte)(buffer % 256);
 
     }
+
 
 }
 }

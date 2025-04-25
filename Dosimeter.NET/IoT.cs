@@ -1,3 +1,6 @@
+using System.Threading.Channels;
+using System.Text.Json;
+
 using MQTTnet;
 namespace Dosimeter
 {
@@ -7,12 +10,15 @@ class IoT
     private string user;
     private string password;
     private UInt16 port;
-    public IoT(string ipAddres, string user, string password,UInt16 port)
+    
+    private Channel<string> ch;
+    public IoT(string ipAddres, string user, string password,UInt16 port,Channel<string> ch)
     {
-        this.ipAddres = ipAddres;
-        this.user = user;
-        this.password = password;
-        this.port = port;
+        this.ipAddres   = ipAddres;
+        this.user       = user;
+        this.password   = password;
+        this.port       = port;
+        this.ch         = ch;
     }
     public async Task startMQTT()
     {
@@ -27,28 +33,49 @@ class IoT
 
             await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
 
-            var applicationMessage = new MqttApplicationMessageBuilder()
-                .WithTopic("test/topic")
-                .WithPayload("19.5")
-                .Build();
 
-            await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
+            while (true)
+            {
+                //Console.WriteLine("SEND");
+                string serialdata = await ch.Reader.ReadAsync();
+                var applicationMessage = new MqttApplicationMessageBuilder()
+                    .WithTopic("sensor/dosimetr")
+                    .WithPayload(formatData(serialdata))
+                    .Build();
 
+                await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
+                //formatData(serialdata);
+            }
             await mqttClient.DisconnectAsync();
-
-            Console.WriteLine("MQTT application message is published.");
         }
+    }
+    string formatData(string data)
+    {
+        try{
+        Dictionary<string, string> dictionary = new Dictionary<string, string>();
+        string[] split = data.Split(';');
+        string[] buffer;
 
-    }
-    public bool open()
-    {
-        return false;
-    }
-    public void Run()
-    {
         
+
+        foreach(string value in split)
+        {
+            buffer = value.Split(':');
+            if(buffer.Length != 2)
+                continue;  
+            dictionary.Add(buffer[0],buffer[1]);
+        }
+        return JsonSerializer.Serialize(dictionary);
+        
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine(e);
+
+        }
+        return JsonSerializer.Serialize("ERR");
+        
+       
     }
-
 }
-
 }
