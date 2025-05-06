@@ -1,18 +1,109 @@
 ﻿using System;
 using System.Text;
 using System.Threading.Channels;
+using System.IO;
 using System.Threading.Tasks;
 namespace Dosimeter
 {
 class Program
 {
-    private 
+    /****************** Variables ******************/
+    static private string[] logo = {"██████   ██████  ███████ ██ ███    ███ ███████ ████████ ███████ ██████         ███    ██ ███████ ████████ ",
+                                    "██   ██ ██    ██ ██      ██ ████  ████ ██         ██    ██      ██   ██        ████   ██ ██         ██    ",
+                                    "██   ██ ██    ██ ███████ ██ ██ ████ ██ █████      ██    █████   ██████         ██ ██  ██ █████      ██    ",
+                                    "██   ██ ██    ██      ██ ██ ██  ██  ██ ██         ██    ██      ██   ██        ██  ██ ██ ██         ██    ",
+                                    "██████   ██████  ███████ ██ ██      ██ ███████    ██    ███████ ██   ██     ██ ██   ████ ███████    ██    ",
+                                   };
+
+    private static string device            = "/dev/ttyUSB0";
+    private static string MQTT_USER         = "MQTT";
+    private static string MQTT_PASSWORD     = "password";
+    private static string MQTT_IP           = "localhost";
+    private static ushort MQTT_PORT         = 1883;
+    const Int32 BufferSize = 128;
+
+    static private bool getConfiguration(string path)
+        {
+        
+        try
+            {
+            var file = File.OpenRead(path);
+            var streamReader = new StreamReader(file, Encoding.UTF8, true, BufferSize);
+            String line;        
+            while ((line = streamReader.ReadLine()) != null)
+                {
+                    Console.WriteLine(line); 
+                }
+            return true;
+            }
+        catch(UnauthorizedAccessException e)
+            {
+            Console.WriteLine("[\x1b[31mERROR\x1b[0m]Dosimeter.NET have not acces right to configuration file.");
+            return false; 
+
+            }
+        catch (FileNotFoundException )
+            {
+            Console.WriteLine("[\x1b[31mERROR\x1b[0m]Configuration file is not exist."); 
+            return false;
+            }
+
+
+        }
+    static private bool procesArguments(string [] args, out string configPath)
+    {
+        configPath = "";
+
+        for (byte i = 0; i < args.Length;i++)
+        {
+            if(args[i].Contains("-c"))
+            {
+                if((i+1) < args.Length)
+                    {
+                    configPath = args[i+1];
+                    Console.WriteLine("[\x1b[32mOK\x1b[0m]Configuration argument detected ");
+                    }
+                else
+                    {
+                        Console.WriteLine("[\x1b[31mERROR\x1b[0m]Path to configuration file argument after |-c| is missing."); 
+                        return false;
+                    }
+
+                return true;
+            }
+
+        }
+      
+        return false;
+
+    }
     static async Task Main(string[] args)
     {
+        /**** Print logo ****/
+        for(byte i = 0; i < logo.Length;i++)
+            Console.WriteLine(logo[i]);
+        
+        /**** get server configuration ****/
+        if(!procesArguments(args,out string configPath))
+            {
+                Console.WriteLine("[\x1b[32mOK\x1b[0m]Non configuration path was find. Default setting will used.");
+                
+            }
+        
+        if(configPath.Length != 0)
+        {
+            if(getConfiguration(configPath) == false)
+                return;
+        }
+        
+        
+        
+
+
         Channel<string> ch = Channel.CreateUnbounded<string>();
         
-        FS5000 FS = new FS5000("/dev/ttyUSB0",ch);
-        IoT iot = new IoT("192.168.1.23","karel","AVV17def",1883,ch);
+        FS5000 FS = new FS5000(device,ch);
+        IoT iot = new IoT(MQTT_IP,MQTT_USER,MQTT_PASSWORD,MQTT_PORT,ch);
 
         FS.startCommunication();
         var task1 = Task.Run(() => FS.CtiAsynchronne());
@@ -20,9 +111,6 @@ class Program
 
         await Task.WhenAll(task1,task2);
     
-
-        
-        
     }
 }
 }

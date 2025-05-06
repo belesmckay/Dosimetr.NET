@@ -51,12 +51,18 @@ class FS5000(string device, Channel<string> ch)
     {
     List<byte> outData = new List<byte>{};
     private string device = device;
+
+    private bool running = false;
     private SerialPort? port;
     private Channel<string> ch = ch;
 
         public void startCommunication()
     {
-            Console.WriteLine("Communication Start");
+            Console.WriteLine("");
+            Console.WriteLine("");
+            Console.WriteLine("");
+            
+            Console.WriteLine("********* Tryin open serial port to " + device + "  *********");
             try
             {
                 port = new SerialPort(device,115200)
@@ -73,8 +79,11 @@ class FS5000(string device, Channel<string> ch)
             }
             catch(Exception e)
             {
-                Console.WriteLine("Cant open Serial port");
-            }     
+                Console.WriteLine("[\x1b[31mERROR\x1b[0m]Cant open Serial port "); 
+                return;
+            }
+            Console.WriteLine("[\x1b[32mOK\x1b[0m]Port open "); 
+            running = true;     
     }
     
 
@@ -87,10 +96,11 @@ class FS5000(string device, Channel<string> ch)
         // send read command //
         writeData();
         
-        while (true)
+        while (running)
         {
             
            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+           Console.WriteLine("[\x1b[32mOK FS5000\x1b[0m]Data from serial port available ");
 
            if(buffer[0] == 0xAA)
            {
