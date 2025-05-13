@@ -4,78 +4,89 @@ using System.Text.Json;
 using MQTTnet;
 namespace Dosimeter
 {
-class IoT
-{
-    private string ipAddres;
-    private string user;
-    private string password;
-    private UInt16 port;
-    
-    private Channel<string> ch;
-    public IoT(string ipAddres, string user, string password,UInt16 port,Channel<string> ch)
+    class IoT
     {
-        this.ipAddres   = ipAddres;
-        this.user       = user;
-        this.password   = password;
-        this.port       = port;
-        this.ch         = ch;
-    }
-    public async Task startMQTT()
-    {
-        var mqttFactory = new MqttClientFactory();
+        private string ipAddres;
+        private string user;
+        private string password;
+        private UInt16 port;
 
-        using (var mqttClient = mqttFactory.CreateMqttClient())
+        private Channel<string> ch;
+        public IoT(string ipAddres, string user, string password, UInt16 port, Channel<string> ch)
         {
-            var mqttClientOptions = new MqttClientOptionsBuilder()
-                .WithTcpServer(this.ipAddres,this.port)
-                .WithCredentials(this.user,this.password)
-                .Build();
+            this.ipAddres = ipAddres;
+            this.user = user;
+            this.password = password;
+            this.port = port;
+            this.ch = ch;
+        }
+        public async Task startMQTT()
+        {
+            var mqttFactory = new MqttClientFactory();
 
-            await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
-
-
-            while (true)
+            using (var mqttClient = mqttFactory.CreateMqttClient())
             {
-                //Console.WriteLine("SEND");
-                string serialdata = await ch.Reader.ReadAsync();
-                var applicationMessage = new MqttApplicationMessageBuilder()
-                    .WithTopic("sensor/dosimetr")
-                    .WithPayload(formatData(serialdata))
-                    .Build();
 
-                await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
-                //formatData(serialdata);
+                Console.WriteLine("********* Tryin open connection to MQTT server " + ipAddres + "  *********");
+                try
+                {
+                    var mqttClientOptions = new MqttClientOptionsBuilder()
+                        .WithTcpServer(this.ipAddres, this.port)
+                        .WithCredentials(this.user, this.password)
+                        .Build();
+
+                    await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("[\x1b[31mERROR\x1b[0m]Cant connect to MQTT server. ");
+                    return;
+
+                }
+
+                while (true)
+                {
+                    //Console.WriteLine("SEND");
+                    string serialdata = await ch.Reader.ReadAsync();
+                    var applicationMessage = new MqttApplicationMessageBuilder()
+                        .WithTopic("sensor/dosimetr")
+                        .WithPayload(formatData(serialdata))
+                        .Build();
+
+                    await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
+                    //formatData(serialdata);
+                }
+                await mqttClient.DisconnectAsync();
             }
-            await mqttClient.DisconnectAsync();
+        }
+        string formatData(string data)
+        {
+            try
+            {
+                Dictionary<string, string> dictionary = new Dictionary<string, string>();
+                string[] split = data.Split(';');
+                string[] buffer;
+
+
+
+                foreach (string value in split)
+                {
+                    buffer = value.Split(':');
+                    if (buffer.Length != 2)
+                        continue;
+                    dictionary.Add(buffer[0], buffer[1]);
+                }
+                return JsonSerializer.Serialize(dictionary);
+
+            }
+            catch (Exception e)
+            {
+                //  Console.WriteLine(e);
+
+            }
+            return JsonSerializer.Serialize("ERR");
+
+
         }
     }
-    string formatData(string data)
-    {
-        try{
-        Dictionary<string, string> dictionary = new Dictionary<string, string>();
-        string[] split = data.Split(';');
-        string[] buffer;
-
-        
-
-        foreach(string value in split)
-        {
-            buffer = value.Split(':');
-            if(buffer.Length != 2)
-                continue;  
-            dictionary.Add(buffer[0],buffer[1]);
-        }
-        return JsonSerializer.Serialize(dictionary);
-        
-        }
-        catch(Exception e)
-        {
-          //  Console.WriteLine(e);
-
-        }
-        return JsonSerializer.Serialize("ERR");
-        
-       
-    }
-}
 }
