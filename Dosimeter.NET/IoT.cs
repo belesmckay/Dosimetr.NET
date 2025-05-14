@@ -10,6 +10,7 @@ namespace Dosimeter
         private string user;
         private string password;
         private UInt16 port;
+        private const string topic = "sensor/dosimetr";
 
         private Channel<string> ch;
         public IoT(string ipAddres, string user, string password, UInt16 port, Channel<string> ch)
@@ -20,7 +21,7 @@ namespace Dosimeter
             this.port = port;
             this.ch = ch;
         }
-        public async Task startMQTT()
+        public async Task StartMQTT()
         {
             var mqttFactory = new MqttClientFactory();
 
@@ -49,12 +50,12 @@ namespace Dosimeter
                     //Console.WriteLine("SEND");
                     string serialdata = await ch.Reader.ReadAsync();
                     var applicationMessage = new MqttApplicationMessageBuilder()
-                        .WithTopic("sensor/dosimetr")
+                        .WithTopic(topic)
                         .WithPayload(formatData(serialdata))
                         .Build();
 
                     await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
-                    //formatData(serialdata);
+                    Console.WriteLine("[\x1b[32mOK MQTT\x1b[0m]Data sended to broker: " + this.ipAddres + " and topic: " + topic);
                 }
                 await mqttClient.DisconnectAsync();
             }

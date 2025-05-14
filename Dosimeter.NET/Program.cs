@@ -25,7 +25,6 @@ namespace Dosimeter
         /****************** Methods ******************/
         static private bool getConfiguration(string path)
         {
-
             try
             {
                 var file = File.OpenRead(path);
@@ -36,7 +35,6 @@ namespace Dosimeter
                     int index = line.IndexOf(':');
                     if (index > 0)
                     {
-                        //Console.WriteLine(line.Substring(0, index));
                         switch (line.Substring(0, index).Replace(" ", "").Replace(":", ""))
                         {
                             case "MQTT_USER":
@@ -52,13 +50,7 @@ namespace Dosimeter
                                 MQTT_PORT = ushort.Parse(line.Substring(index).Replace(" ", "").Replace(":", ""));
                                 break;
                         }
-
-
                     }
-
-
-
-                    //Console.WriteLine(line); 
                 }
                 return true;
             }
@@ -66,15 +58,12 @@ namespace Dosimeter
             {
                 Console.WriteLine("[\x1b[31mERROR\x1b[0m]Dosimeter.NET have not acces right to configuration file.");
                 return false;
-
             }
             catch (FileNotFoundException)
             {
                 Console.WriteLine("[\x1b[31mERROR\x1b[0m]Configuration file is not exist.");
                 return false;
             }
-
-
         }
         static private bool procesArguments(string[] args, out string configPath)
         {
@@ -132,8 +121,8 @@ namespace Dosimeter
             IoT iot = new IoT(MQTT_IP, MQTT_USER, MQTT_PASSWORD, MQTT_PORT, ch);
 
             FS.startCommunication();
-            var task1 = Task.Run(() => FS.CtiAsynchronne());
-            var task2 = Task.Run(() => iot.startMQTT());
+            var task1 = Task.Run(() => FS.ReadAsynch());
+            var task2 = Task.Run(() => iot.StartMQTT());
 
             await Task.WhenAny(task1, task2);
 

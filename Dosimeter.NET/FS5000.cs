@@ -1,68 +1,24 @@
+
+//TODO: Add control more control function of the - FS5000
+
+//NOTE: In this moment, you can only read values from the dosimeter (which is the main goal of this project ). Clear dose and other control function I´ll try add later
+//NOTE: I want notice that protocol structure and all commands and values i founded and used from this project https://gist.github.com/brookst/bdbede3a8d40eb8940a5b53e7ca1f6ce 
 using System.IO.Ports;
-using System;
 using System.Text;
-using System.Threading.Tasks;
 using System.Threading.Channels;
-using System.Reflection.Metadata;
 namespace Dosimeter
 {
-    class DosimeterData
-    {
-        private double doserate;
-
-        public double Doserate
-        {
-            get { return doserate; }
-            set { this.doserate = value; }
-        }
-        private double dose;
-        public double Dose
-        {
-            get { return dose; }
-            set { this.dose = value; }
-        }
-        private double avg_doserate;
-        public double Avg_doserate
-        {
-            get { return avg_doserate; }
-            set { this.avg_doserate = value; }
-        }
-        private UInt16 cps;
-        public UInt16 Cps
-        {
-            get { return cps; }
-            set { this.cps = value; }
-        }
-        private UInt16 cpm;
-        public UInt16 Cpm
-        {
-            get { return cpm; }
-            set { this.cpm = value; }
-        }
-
-        private byte warning;
-        public byte Warning
-        {
-            get { return warning; }
-            set { this.warning = value; }
-        }
-    }
     class FS5000(string device, Channel<string> ch)
     {
         List<byte> outData = new List<byte> { };
         private string device = device;
-
         private bool running = false;
         private SerialPort? port;
         private Channel<string> ch = ch;
-
+        //**** Initialization ****/
         public void startCommunication()
         {
-            Console.WriteLine("");
-            Console.WriteLine("");
-            Console.WriteLine("");
-
-            Console.WriteLine("********* Tryin open serial port to " + device + "  *********");
+            Console.WriteLine("********* Trying open serial port to " + device + "  *********");
             try
             {
                 port = new SerialPort(device, 115200)
@@ -87,7 +43,7 @@ namespace Dosimeter
         }
 
 
-        public async Task CtiAsynchronne()
+        public async Task ReadAsynch()
         {
             int payloadWilRead = 0;
             byte[] buffer = new byte[1024];
@@ -98,15 +54,14 @@ namespace Dosimeter
 
             while (running)
             {
-
                 int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
                 Console.WriteLine("[\x1b[32mOK FS5000\x1b[0m]Data from serial port available ");
-
+                //TODO: I have to rework this in to more elegant state. This is mess
+                //Check start of the packet
                 if (buffer[0] == 0xAA)
                 {
-
                     payloadWilRead = buffer[1] - 2;
-
+                    // i= 3 becouse i drop 0XAA, payload size and checksum 
                     for (int i = 3; i <= bytesRead; i++, payloadWilRead--)
                     {
                         outData.Add(buffer[i]);
@@ -120,6 +75,8 @@ namespace Dosimeter
                         {
                             byte[] filteredOut = outData.ToArray();
                             string textt = Encoding.ASCII.GetString(filteredOut, 0, filteredOut.Count());
+
+                            //Give datat to IoT task 
                             await ch.Writer.WriteAsync(textt);
 
                             outData.Clear();
@@ -131,16 +88,20 @@ namespace Dosimeter
             }
             port.Close();
         }
+        /************************  Communication methods ************************/
+
+        /**** Send request to sending data from FS 5000 ****/
         public void writeData()
         {
+            //Start byte, DLC, Read out command, Turn_On, CheckSum, EndByte
             List<byte> dataList = new List<byte> { 0xAA, 0x5, 0x0E, 0x01 };
-            // 0x0E Read all 0x06 version
-
             byte check = checkSum(dataList.ToArray(), 4);
+
             dataList.Add(check);
             dataList.Add(0x55);
             port.Write(dataList.ToArray(), 0, dataList.Count());
         }
+        /**** Calculate checksum ****/
         private byte checkSum(byte[] payload, byte size)
         {
             UInt16 buffer = 0;
@@ -148,9 +109,6 @@ namespace Dosimeter
                 buffer += payload[i];
 
             return (byte)(buffer % 256);
-
         }
-
-
     }
 }
