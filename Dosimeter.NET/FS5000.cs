@@ -1,5 +1,5 @@
 
-//TODO: Add control more control function of the - FS5000
+//TODO: Add more control functions of the - FS5000
 
 //NOTE: In this moment, you can only read values from the dosimeter (which is the main goal of this project ). Clear dose and other control function I´ll try add later
 //NOTE: I want notice that protocol structure and all commands and values i founded and used from this project https://gist.github.com/brookst/bdbede3a8d40eb8940a5b53e7ca1f6ce 
@@ -15,6 +15,7 @@ namespace Dosimeter
         private bool running = false;
         private SerialPort? port;
         private Channel<string> ch = ch;
+
         //**** Initialization ****/
         public void startCommunication()
         {
@@ -42,48 +43,41 @@ namespace Dosimeter
             running = true;
         }
 
-
         public async Task ReadAsynch()
         {
-            int payloadWilRead = 0;
+            byte[] received;
             byte[] buffer = new byte[1024];
             var stream = port.BaseStream;
+            byte remainRead = 0;
 
             // send read command //
+            // This will make FS5000 to send you data
             writeData();
 
             while (running)
             {
                 int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                Console.WriteLine("[\x1b[32mOK FS5000\x1b[0m]Data from serial port available ");
-                //TODO: I have to rework this in to more elegant state. This is mess
-                //Check start of the packet
-                if (buffer[0] == 0xAA)
+                for (byte i = 0; i < bytesRead; i++)
                 {
-                    payloadWilRead = buffer[1] - 2;
-                    // i= 3 becouse i drop 0XAA, payload size and checksum 
-                    for (int i = 3; i <= bytesRead; i++, payloadWilRead--)
+                    if (buffer[i] == 0xAA && bytesRead > i)
+                    {
+                        remainRead = (byte)(buffer[i + 1] - 4); // Minus DLC , Command 0x0E, Checksum and End byte
+                        i += 2; //Skip DLC and Command 0x0E
+                        continue;
+                    }
+                    if (remainRead > 0)
                     {
                         outData.Add(buffer[i]);
+                        remainRead--;
                     }
                 }
-                else
+                //Whole packet readed
+                if (remainRead == 0)
                 {
-                    for (int i = 0; i <= bytesRead; i++, payloadWilRead--)
-                    {
-                        if (payloadWilRead == 0)
-                        {
-                            byte[] filteredOut = outData.ToArray();
-                            string textt = Encoding.ASCII.GetString(filteredOut, 0, filteredOut.Count());
-
-                            //Give datat to IoT task 
-                            await ch.Writer.WriteAsync(textt);
-
-                            outData.Clear();
-                            break;
-                        }
-                        outData.Add(buffer[i]);
-                    }
+                    received = outData.ToArray();
+                    outData.Clear();
+                    string textt = Encoding.ASCII.GetString(received, 0, received.Length);
+                    await ch.Writer.WriteAsync(textt);
                 }
             }
             port.Close();

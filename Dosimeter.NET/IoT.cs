@@ -1,3 +1,7 @@
+
+//TODO: Add TLS support
+
+
 using System.Threading.Channels;
 using System.Text.Json;
 
@@ -42,18 +46,15 @@ namespace Dosimeter
                 {
                     Console.WriteLine("[\x1b[31mERROR\x1b[0m]Cant connect to MQTT server. ");
                     return;
-
                 }
 
                 while (true)
                 {
-                    //Console.WriteLine("SEND");
                     string serialdata = await ch.Reader.ReadAsync();
                     var applicationMessage = new MqttApplicationMessageBuilder()
                         .WithTopic(topic)
                         .WithPayload(formatData(serialdata))
                         .Build();
-
                     await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
                     Console.WriteLine("[\x1b[32mOK MQTT\x1b[0m]Data sended to broker: " + this.ipAddres + " and topic: " + topic);
                 }
@@ -68,8 +69,6 @@ namespace Dosimeter
                 string[] split = data.Split(';');
                 string[] buffer;
 
-
-
                 foreach (string value in split)
                 {
                     buffer = value.Split(':');
@@ -78,15 +77,12 @@ namespace Dosimeter
                     dictionary.Add(buffer[0], buffer[1]);
                 }
                 return JsonSerializer.Serialize(dictionary);
-
             }
             catch (Exception e)
             {
-                //  Console.WriteLine(e);
 
             }
             return JsonSerializer.Serialize("ERR");
-
 
         }
     }

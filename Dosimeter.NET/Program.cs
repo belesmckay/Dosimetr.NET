@@ -1,8 +1,5 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 using System.Threading.Channels;
-using System.IO;
-using System.Threading.Tasks;
 namespace Dosimeter
 {
     class Program
@@ -21,7 +18,7 @@ namespace Dosimeter
         private static string MQTT_IP = "localhost";
         private static ushort MQTT_PORT = 1883;
         const Int32 BufferSize = 128;
-        //("192.168.1.23","karel","AVV17def",1883,ch);
+
         /****************** Methods ******************/
         static private bool getConfiguration(string path)
         {
@@ -83,15 +80,12 @@ namespace Dosimeter
                         Console.WriteLine("[\x1b[31mERROR\x1b[0m]Path to configuration file argument after |-c| is missing.");
                         return false;
                     }
-
                     return true;
                 }
-
             }
-
             return false;
-
         }
+
         static async Task Main(string[] args)
         {
             /**** Print logo ****/
@@ -102,7 +96,6 @@ namespace Dosimeter
             if (!procesArguments(args, out string configPath))
             {
                 Console.WriteLine("[\x1b[32mOK\x1b[0m]Non configuration path was find. Default setting will used.");
-
             }
 
             if (configPath.Length != 0)
@@ -110,21 +103,16 @@ namespace Dosimeter
                 if (getConfiguration(configPath) == false)
                     return;
             }
-
-
-
-
-
             Channel<string> ch = Channel.CreateUnbounded<string>();
 
             FS5000 FS = new FS5000(device, ch);
-            IoT iot = new IoT(MQTT_IP, MQTT_USER, MQTT_PASSWORD, MQTT_PORT, ch);
+            //IoT iot = new IoT(MQTT_IP, MQTT_USER, MQTT_PASSWORD, MQTT_PORT, ch);
 
             FS.startCommunication();
             var task1 = Task.Run(() => FS.ReadAsynch());
-            var task2 = Task.Run(() => iot.StartMQTT());
-
-            await Task.WhenAny(task1, task2);
+            // var task2 = Task.Run(() => iot.StartMQTT());
+            await Task.WhenAny(task1);
+            //await Task.WhenAny(task1, task2);
 
         }
     }
