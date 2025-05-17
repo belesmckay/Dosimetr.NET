@@ -106,13 +106,13 @@ namespace Dosimeter
             Channel<string> ch = Channel.CreateUnbounded<string>();
 
             FS5000 FS = new FS5000(device, ch);
-            //IoT iot = new IoT(MQTT_IP, MQTT_USER, MQTT_PASSWORD, MQTT_PORT, ch);
+            IoT iot = new IoT(MQTT_IP, MQTT_USER, MQTT_PASSWORD, MQTT_PORT, ch);
 
             FS.startCommunication();
             var task1 = Task.Run(() => FS.ReadAsynch());
-            // var task2 = Task.Run(() => iot.StartMQTT());
-            await Task.WhenAny(task1);
-            //await Task.WhenAny(task1, task2);
+            var task2 = Task.Run(() => iot.StartMQTT());
+            //await Task.WhenAny(task1);
+            await Task.WhenAny(task1, task2);
 
         }
     }
