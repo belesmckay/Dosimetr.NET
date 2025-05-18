@@ -15,8 +15,11 @@ namespace Dosimeter
         private string password;
         private UInt16 port;
         private const string measuredDatatopic = "dosimetr/FS5000";
+        private const string resetDoseCmdtopic = "dosimetr/FS5000/cmd";
+        private const string resetDoseStatetopic = "dosimetr/FS5000/state";
         private const string DiscoveryDoseRatetopic = "homeassistant/sensor/dosimetr/doserate/config";
         private const string DiscoveryDosetopic = "homeassistant/sensor/dosimetr/dose/config";
+        private const string DiscoveryDoseResettopic = "homeassistant/switch/dosimetr/dosereset/config";
         private IMqttClient mqttClient;
         private Channel<string> ch;
 
@@ -45,6 +48,22 @@ namespace Dosimeter
 
             value_template = "{{ value_json.D | replace(\"uSv\", \"\") | float }}",
             unit_of_measurement = "µSv",
+            device = new
+            {
+                identifiers = new[] { "dosimetr" },
+                name = "Dosimetr"
+            }
+        };
+        public static readonly object DoseResetPayload = new
+        {
+            name = "Dose reset",
+            unique_id = "dose_reset",
+            command_topic = resetDoseCmdtopic,
+            state_topic = resetDoseStatetopic,
+            payload_on = "ON",
+            payload_off = "OFF",
+            state_on = "ON",
+            state_off = "OFF",
             device = new
             {
                 identifiers = new[] { "dosimetr" },
@@ -93,6 +112,7 @@ namespace Dosimeter
                 {
                     string serialdata = await ch.Reader.ReadAsync();
                     sendMQTTMessage(measuredDatatopic, formatData(serialdata), false);
+                    sendMQTTMessage(resetDoseStatetopic, "OFF", false);
                 }
                 await mqttClient.DisconnectAsync();
             }
@@ -103,6 +123,7 @@ namespace Dosimeter
         {
             sendMQTTMessage(DiscoveryDoseRatetopic, JsonSerializer.Serialize(DoseRateDiscoveryPayload, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }), true);
             sendMQTTMessage(DiscoveryDosetopic, JsonSerializer.Serialize(DoseDiscoveryPayload, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }), true);
+            sendMQTTMessage(DiscoveryDoseResettopic, JsonSerializer.Serialize(DoseResetPayload, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }), true);
         }
 
 
