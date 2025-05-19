@@ -46,6 +46,9 @@ namespace Dosimeter
                             case "MQTT_PORT":
                                 MQTT_PORT = ushort.Parse(line.Substring(index).Replace(" ", "").Replace(":", ""));
                                 break;
+                            case "USB_DEVICE":
+                                device = line.Substring(index).Replace(" ", "").Replace(":", "");
+                                break;
                         }
                     }
                 }
